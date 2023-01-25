@@ -1,0 +1,10 @@
+[azurevms]
+ca-labs-web-0-ad59f5efca2de75a.eastus.cloudapp.azure.com ansible_host=20.115.125.95
+ca-labs-web-1-ad59f5efca2de75a.eastus.cloudapp.azure.com ansible_host=20.115.121.131
+ca-labs-web-2-ad59f5efca2de75a.eastus.cloudapp.azure.com ansible_host=20.115.121.70
+
+[azurevms:vars]
+ansible_user=superadmin
+ansible_password=s3cr3tP@55word
+ansible_connection=ssh
+ansible_port=22

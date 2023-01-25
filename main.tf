@@ -29,6 +29,11 @@ variable "location" {}
 
 variable "subnet_id" {}
 
+variable "numbercount" {
+    type 	  = number
+    default       = 3
+} 
+
 # WEB SERVER FQDN
 #============================
 
@@ -39,19 +44,21 @@ resource "random_id" "webserver_dns" {
 # WEB SERVER PIP
 #============================
 
-resource "azurerm_public_ip" "cloudacademydevops-web-vm-pip" {
-  name                = "cloudacademy-web-vm"
+resource "azurerm_public_ip" "azuredev-web-vm-pip" {
+  count 		  = var.numbercount
+  name                = "manz-web-ip-${count.index}"
   location            = var.location
   resource_group_name = var.resource_group_name
   allocation_method   = "Static"
-  domain_name_label   = "ca-labs-web-${lower(random_id.webserver_dns.hex)}"
+  domain_name_label   = "ca-labs-web-${count.index}-${lower(random_id.webserver_dns.hex)}"
 }
 
 # WEB SERVER NIC
 #============================
 
-resource "azurerm_network_interface" "cloudacademydevops-vm-nic" {
-  name                = "cloudacademy-vm-nic"
+resource "azurerm_network_interface" "azuredev-vm-nic" {
+  count               = var.numbercount
+  name                = "manz-vm-nic-${count.index}"
   location            = var.location
   resource_group_name = var.resource_group_name
 
@@ -59,7 +66,7 @@ resource "azurerm_network_interface" "cloudacademydevops-vm-nic" {
     name                          = "ip"
     subnet_id                     = var.subnet_id
     private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.cloudacademydevops-web-vm-pip.id
+    public_ip_address_id          = element(azurerm_public_ip.azuredev-web-vm-pip.*.id, count.index)
   }
 }
 
@@ -83,19 +90,20 @@ data "template_cloudinit_config" "vm_config" {
 # WEBSERVER LINUX VM
 #============================
 
-resource "azurerm_linux_virtual_machine" "cloudacademy_web_vm" {
-  name                  = "cloudacademy-web-vm"
+resource "azurerm_linux_virtual_machine" "manz_web_vm" {
+  name                  = "manz-web-vm-${count.index}"
   location              = var.location
   resource_group_name   = var.resource_group_name
-  network_interface_ids = [azurerm_network_interface.cloudacademydevops-vm-nic.id]
+  network_interface_ids = [element(azurerm_network_interface.azuredev-vm-nic.*.id, count.index)]
   size                  = "Standard_B1s"
-
-  computer_name                   = "cloudacademy-vm"
+  count 		  = var.numbercount
+  computer_name                   = "manz-vm-${count.index}"
   admin_username                  = "superadmin"
   admin_password                  = "s3cr3tP@55word"
   disable_password_authentication = false
 
   os_disk {
+    name                 = "manz-storage-vm-${count.index}"
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
   }
@@ -110,18 +118,23 @@ resource "azurerm_linux_virtual_machine" "cloudacademy_web_vm" {
   custom_data = data.template_cloudinit_config.vm_config.rendered
 
   tags = {
-    org = "cloudacademy"
+    org = "manz"
     app = "devops"
   }
 }
+
 
 # OUTPUTS
 #============================
 
 output "vm_public_ip" {
-  value = azurerm_public_ip.cloudacademydevops-web-vm-pip.ip_address
+  value = {
+    for k, v in azurerm_public_ip.azuredev-web-vm-pip : k => v.ip_address
+  }
 }
 
 output "vm_dns" {
-  value = azurerm_public_ip.cloudacademydevops-web-vm-pip.fqdn
+  value = {
+    for k, v in azurerm_public_ip.azuredev-web-vm-pip : k => v.fqdn
+  }
 }
